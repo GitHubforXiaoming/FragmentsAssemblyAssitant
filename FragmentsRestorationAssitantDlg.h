@@ -16,11 +16,14 @@ class CFragmentsRestorationAssitantDlg : public CDialogEx
 private:
 	static CString defaultPath;
 	string curSelectedFractures[2];
+	string matchPairFileName;
 	int AXIS = 0;
 	double THETA_DELTA = 0.5;
 	double DISTANCE_DELTA = 0.1;
 	bool IS_TUNE = false;
 	CString dir;
+	string prefix;
+	string fracturesDir;
 	Utils utils;
 	Registration registration;
 
@@ -37,6 +40,7 @@ private:
 	vtkSmartPointer<vtkPolyData> floatFracture;
 	vtkSmartPointer<vtkPolyData> fixedFragment;
 	vtkSmartPointer<vtkPolyData> floatFragment;
+	vector<pair<vtkSmartPointer<vtkPolyData>, string>> floatFractures;	// 在同一碎片上的断面
 	vector<vtkSmartPointer<vtkPolyData>> transformedDatas;
 
 	vector<vtkSmartPointer<vtkPolyData>> originalPairOfFragments;
@@ -134,7 +138,7 @@ public:
 	********************************/
 	void TransformFracturesOnFragment(vtkSmartPointer<vtkPolyData>& fragment, vector<vtkSmartPointer<vtkPolyData>>& fractures, vtkSmartPointer<vtkMatrix4x4> matrix);
 
-	void TransformFracturesOnTheSameFragment(vector<vtkSmartPointer<vtkPolyData>>& fractures, vtkSmartPointer<vtkMatrix4x4> matrix);
+	void TransformFracturesOnTheSameFragment(vector<pair<vtkSmartPointer<vtkPolyData>, string>>& fractures, vtkSmartPointer<vtkMatrix4x4> matrix);
 
 	void TransformDatas(vtkSmartPointer<vtkPolyData>& data, vtkSmartPointer<vtkMatrix4x4> matrix);
 
@@ -190,4 +194,5 @@ public:
 	afx_msg void OnBnClickedButtonSaveFragment();
 	afx_msg void OnBnClickedButtonSecondPca();
 	afx_msg void OnBnClickedButtonRechose();
+	afx_msg void OnBnClickedButtonSaveRelation();
 };

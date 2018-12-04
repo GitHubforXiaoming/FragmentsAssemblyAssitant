@@ -178,6 +178,40 @@ vector<vector<vtkSmartPointer<vtkPolyData>>> Utils::ReadFractures(string modelDi
 }
 
 
+vector<vector<vtkSmartPointer<vtkPolyData>>> Utils::ReadFracturesWithPrefix(string modelDir, string& fracturesDir, vector<vector<string>>& files, string& prefix)
+{
+	vector<string> splitted = SplitString(modelDir, "\\");
+	prefix = splitted[splitted.size() - 2];
+	for (unsigned int i = 0; i < splitted.size() - 3; i++)
+	{
+		fracturesDir += splitted[i] + "\\";
+	}
+	fracturesDir += "fractures\\";
+	prefix = prefix.substr(6, prefix.length());
+	vector<vtkSmartPointer<vtkPolyData>> datas;
+	vector<string> fragmentNames;
+	vector<string> fractureNames;
+	GetAllFormatFiles(modelDir, fragmentNames, ".stl");
+	GetAllFormatFiles(fracturesDir, fractureNames, ".stl");
+	files.resize(fragmentNames.size());
+	vector<vector<vtkSmartPointer<vtkPolyData>>> fracturess(fragmentNames.size());
+	for (unsigned int i = 0; i < fractureNames.size(); i++)
+	{
+		vector<string> fileNames;
+		vector<string> s = SplitString(fractureNames[i], "-");
+		if (s[0] == prefix)
+		{
+
+			vtkSmartPointer<vtkPolyData> fracture = ReadOneData(fracturesDir + fractureNames[i]);
+			files[atoi(s[1].c_str()) - 1].push_back( fracturesDir + fractureNames[i]);
+			fracturess[atoi(s[1].c_str()) - 1].push_back(fracture);
+		}
+	}
+
+	return fracturess;
+}
+
+
 
 vtkSmartPointer<vtkPolyData> Utils::ReadOneData(string name)
 {

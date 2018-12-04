@@ -77,6 +77,8 @@ public:
 
 	vector<vector<vtkSmartPointer<vtkPolyData>>> ReadFractures(string modelDir, vector<vector<string>>& files);
 
+	vector<vector<vtkSmartPointer<vtkPolyData>>> ReadFracturesWithPrefix(string modelDir, string& fracturesDir, vector<vector<string>>& files, string& prefix);
+
 
 	/********************************
 	* º¯ÊýÃû£ºReadOneData

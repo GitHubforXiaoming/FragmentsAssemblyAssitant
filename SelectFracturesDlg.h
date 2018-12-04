@@ -21,11 +21,14 @@ protected:
 
 	DECLARE_MESSAGE_MAP()
 private:
+	static int firstPickedFragmentId;
 	bool isSelected = false;
+	bool isFirstPicked = true;
 	int isRender = 0;
 	int fragmentId, fractureId;
 	Utils utils;
 	string rootDir;
+	string prefix;
 	vector<string> fragmentNames;
 	vector<vector<string>> fractureNames;
 	vector<vector<int>> visited;
@@ -39,7 +42,9 @@ public:
 
 	void SetNames(string rootDir, vector<string> fragmentNames, vector<vector<string>> fractureNames);
 	void SetVisited(vector<vector<int>> visited);
+	void SetFixedFractureId(bool flag);
 	vector<int> GetId();
 	afx_msg void OnNMDblclkTreeFragmentsAndFractures(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnBnClickedButtonSelectConfirm();
+	afx_msg void OnNMClickTreeFragmentsAndFractures(NMHDR *pNMHDR, LRESULT *pResult);
 };

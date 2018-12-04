@@ -36,8 +36,10 @@ BEGIN_MESSAGE_MAP(CSelectFracturesDlg, CDialogEx)
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE_FRAGMENTS_AND_FRACTURES, &CSelectFracturesDlg::OnTvnSelchangedTreeFragmentsAndFractures)
 	ON_NOTIFY(NM_DBLCLK, IDC_TREE_FRAGMENTS_AND_FRACTURES, &CSelectFracturesDlg::OnNMDblclkTreeFragmentsAndFractures)
 	ON_BN_CLICKED(IDC_BUTTON_SELECT_CONFIRM, &CSelectFracturesDlg::OnBnClickedButtonSelectConfirm)
+	ON_NOTIFY(NM_CLICK, IDC_TREE_FRAGMENTS_AND_FRACTURES, &CSelectFracturesDlg::OnNMClickTreeFragmentsAndFractures)
 END_MESSAGE_MAP()
 
+int CSelectFracturesDlg::firstPickedFragmentId;
 
 // CSelectFracturesDlg 消息处理程序
 
@@ -87,9 +89,15 @@ void CSelectFracturesDlg::SetNames(string rootDir, vector<string> fragmentNames,
 	this->fractureNames = fractureNames;
 }
 
+
 void CSelectFracturesDlg::SetVisited(vector<vector<int>> visited)
 {
 	this->visited = visited;
+}
+
+void CSelectFracturesDlg::SetFixedFractureId(bool flag)
+{
+	isFirstPicked = flag;
 }
 
 vector<int> CSelectFracturesDlg::GetId()
@@ -114,44 +122,60 @@ void CSelectFracturesDlg::OnNMDblclkTreeFragmentsAndFractures(NMHDR *pNMHDR, LRE
 	{
 		isSelected = true;
 		int id = m_treeFragmentsFractures.GetItemData(hTreeItem);
-		name = "fragment-" + to_string(id / 10) + "-fracture-surfaces\\" + 
-			Utils::UnicodeToANSI(m_treeFragmentsFractures.GetItemText(hTreeItem));
 		fragmentId = id / 10;
 		fractureId = id % 10;
-	}
-	
-	CRect rect;
-	GetDlgItem(IDC_STATIC_PREVIEW_SELECTION)->GetWindowRect(rect);
-	CWnd* pWnd = GetDlgItem(IDC_STATIC_PREVIEW_SELECTION);
-	HWND hwnd = pWnd->GetSafeHwnd();
-	
-	vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
-	vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+		name = fractureNames[fragmentId - 1][fractureId - 1];
+		if (isFirstPicked)
+			firstPickedFragmentId = fragmentId;
 
-	mapper->SetInputData(utils.ReadOneData(rootDir + "\\" + name));
-	
-	vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
-	actor->SetMapper(mapper);
-	int color = rand() % 10;
-	actor->GetProperty()->SetColor(COLOR_RAINBOW[color % 10][0] / 255.0, COLOR_RAINBOW[color % 10][1] / 255.0, COLOR_RAINBOW[color % 10][2] / 255.0);
-	renderer->SetBackground(255 / 255.0, 255 / 255.0, 255 / 255.0);
+		CRect rect;
+		GetDlgItem(IDC_STATIC_PREVIEW_SELECTION)->GetWindowRect(rect);
+		CWnd* pWnd = GetDlgItem(IDC_STATIC_PREVIEW_SELECTION);
+		HWND hwnd = pWnd->GetSafeHwnd();
 
-	renderWindow->SetParentId(hwnd);
-	renderWindow->SetSize(rect.Width(), rect.Height());
-	if (isRender == 0)
-	{
-		renderer->AddActor(actor);
-		renderWindow->AddRenderer(renderer);
-		renderWindowInteractor->SetRenderWindow(renderWindow);
-		renderWindow->Render();
-		//renderWindowInteractor->Start();
-	}
-	else
-	{
-		isRender++;
-		renderWindow->Render();
+		vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
+		vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+
+		mapper->SetInputData(utils.ReadOneData(name));
+
+		vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+		actor->SetMapper(mapper);
+		int color = rand() % 10;
+		actor->GetProperty()->SetColor(COLOR_RAINBOW[color % 10][0] / 255.0, COLOR_RAINBOW[color % 10][1] / 255.0, COLOR_RAINBOW[color % 10][2] / 255.0);
+		renderer->SetBackground(255 / 255.0, 255 / 255.0, 255 / 255.0);
+
+		renderWindow->SetParentId(hwnd);
+		renderWindow->SetSize(rect.Width(), rect.Height());
+		if (isRender == 0)
+		{
+			renderer->AddActor(actor);
+			renderWindow->AddRenderer(renderer);
+			renderWindowInteractor->SetRenderWindow(renderWindow);
+			renderWindow->Render();
+			//renderWindowInteractor->Start();
+		}
+		else
+		{
+			isRender++;
+			renderWindow->Render();
+		}
+		if (visited[fragmentId - 1][fractureId - 1])
+		{
+			MessageBox(_T("该断面已经被选过"), _T("提示"), MB_OK);
+		}
+		else if (firstPickedFragmentId == fragmentId && !isFirstPicked)
+		{
+			MessageBox(_T("选择了同一碎片上的断面"), _T("提示"), MB_OK);
+		}
+		else
+		{
+			renderWindow->Delete();
+			renderWindowInteractor->Delete();
+			CDialog::OnOK();
+		}
 	}
 	*pResult = 0;
+	
 }
 
 
@@ -167,10 +191,21 @@ void CSelectFracturesDlg::OnBnClickedButtonSelectConfirm()
 	{
 		MessageBox(_T("该断面已经被选过"), _T("提示"), MB_OK);
 	}
+	else if (firstPickedFragmentId == fragmentId && !isFirstPicked)
+	{
+		MessageBox(_T("选择了同一碎片上的断面"), _T("提示"), MB_OK);
+	}
 	else
 	{
 		renderWindow->Delete();
 		renderWindowInteractor->Delete();
 		CDialog::OnOK();
 	}
+}
+
+
+void CSelectFracturesDlg::OnNMClickTreeFragmentsAndFractures(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	// TODO:  在此添加控件通知处理程序代码
+	
 }

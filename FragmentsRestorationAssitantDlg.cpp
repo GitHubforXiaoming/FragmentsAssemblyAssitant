@@ -106,8 +106,8 @@ BEGIN_MESSAGE_MAP(CFragmentsRestorationAssitantDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_ROTATE_CONF, &CFragmentsRestorationAssitantDlg::OnBnClickedButtonRotateConf)
 	ON_BN_CLICKED(IDC_BUTTON_TRANSLATE_CONF, &CFragmentsRestorationAssitantDlg::OnBnClickedButtonTranslateConf)
 	ON_BN_CLICKED(IDC_BUTTON_SAVE_FRAGMENT, &CFragmentsRestorationAssitantDlg::OnBnClickedButtonSaveFragment)
-	ON_BN_CLICKED(IDC_BUTTON_SECOND_PCA, &CFragmentsRestorationAssitantDlg::OnBnClickedButtonSecondPca)
 	ON_BN_CLICKED(IDC_BUTTON_RECHOSE, &CFragmentsRestorationAssitantDlg::OnBnClickedButtonRechose)
+	ON_BN_CLICKED(IDC_BUTTON_SAVE_RELATION, &CFragmentsRestorationAssitantDlg::OnBnClickedButtonSaveRelation)
 END_MESSAGE_MAP()
 
 
@@ -526,7 +526,7 @@ void CFragmentsRestorationAssitantDlg::DisplayFragmentsAndFracturess(vector<vtkS
 			renderer->AddActor(actor);
 
 			vtkSmartPointer<vtkProperty2D> textProperty = textActor->GetProperty();
-			textActor->SetInput(("# " + fragmentName + "-" + string(1, (char)('a' + j))).c_str());
+			textActor->SetInput(("# " + string(1, (char)('a' + j))).c_str());
 			/*textProperty->SetFontFamilyToArial();
 			textProperty->BoldOn();
 			textProperty->SetFontSize(36);
@@ -622,12 +622,11 @@ void CFragmentsRestorationAssitantDlg::DisplayFragmentsAndFractures(vector<vtkSm
 	{
 		string fixedName = curSelectedFractures[0];
 		string floatName = curSelectedFractures[1];
-		vector<string> fixedSegments = Utils::SplitString(fixedName, "-");
-		vector<string> floatSegments = Utils::SplitString(floatName, "-");
+		vector<string> fixedSegments = Utils::SplitString(fixedName, "\\");
+		vector<string> floatSegments = Utils::SplitString(floatName, "\\");
 		string fixedPost = fixedSegments[fixedSegments.size() - 1];
 		string floatPost = floatSegments[floatSegments.size() - 1];
-		title += fixedSegments[0] + "-" + fixedSegments[1] + "-" + fixedPost.substr(fixedPost.find("\\") + 1, 1) + " --- " +
-			floatSegments[0] + "-" + floatSegments[1] + "-" + floatPost.substr(floatPost.find("\\") + 1, 1);
+		title += fixedPost.substr(0, fixedPost.length() - 4) + " --- " + floatPost.substr(0, floatPost.length() - 4);
 	}
 
 	textActor->SetInput(title.c_str());
@@ -712,14 +711,14 @@ void CFragmentsRestorationAssitantDlg::TransformFracturesOnFragment(vtkSmartPoin
 }
 
 
-void CFragmentsRestorationAssitantDlg::TransformFracturesOnTheSameFragment(vector<vtkSmartPointer<vtkPolyData>>& fractures, vtkSmartPointer<vtkMatrix4x4> matrix)
+void CFragmentsRestorationAssitantDlg::TransformFracturesOnTheSameFragment(vector<pair<vtkSmartPointer<vtkPolyData>, string>>& fractures, vtkSmartPointer<vtkMatrix4x4> matrix)
 {
 	Registration registration;
-	for (unsigned int i = 0; i < fractures.size(); i++)
+	for (auto fracture : fractures)
 	{
 		vtkSmartPointer<vtkPolyData> temp = vtkSmartPointer<vtkPolyData>::New();
-		registration.TransformPolyData(matrix, fractures[i], temp);
-		fractures[i]->DeepCopy(temp);
+		registration.TransformPolyData(matrix, fracture.first, temp);
+		fracture.first->DeepCopy(temp);
 	}
 }
 
@@ -847,7 +846,11 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonOpenFragmentsAndFracture
 	}
 	defaultPath = filePath;
 	fragments = utils.ReadDatas(Utils::UnicodeToANSI(filePath) + "\\", fragmentNames);
-	fracturess = utils.ReadFractures(Utils::UnicodeToANSI(filePath) + "\\", fractureNames);
+	fracturess = utils.ReadFracturesWithPrefix(Utils::UnicodeToANSI(filePath) + "\\", fracturesDir, fractureNames, prefix);
+
+	matchPairFileName = Utils::UnicodeToANSI(filePath) + "\\fragment-" + prefix + ".txt";
+	if (_access(matchPairFileName.c_str(), 0) != -1)
+		remove(matchPairFileName.c_str());
 
 	for (unsigned int i = 0; i < fractureNames.size(); i++)
 	{
@@ -889,15 +892,17 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonChooseFixFracture()
 		CSelectFracturesDlg dlg;
 		dlg.SetNames(Utils::UnicodeToANSI(dir), fragmentNames, fractureNames);
 		dlg.SetVisited(visited);
+		dlg.SetFixedFractureId(true);
 		if (dlg.DoModal() == IDOK)
 		{
 			int i = dlg.GetId()[0];
 			int j = dlg.GetId()[1];
-			
 			if (pairOfFractures.size() != 0 && pairOfFragments.size() != 0)
 			{
 				pairOfFractures.clear();
 				pairOfFragments.clear();
+				originalRendererWindow->Delete();
+				originalInteractor->Delete();
 			}
 			curSelectedFractures[0] = fractureNames[i][j];
 			visited[i][j] = 1;
@@ -923,6 +928,7 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonChooseFloatFracture()
 		CSelectFracturesDlg dlg;
 		dlg.SetNames(Utils::UnicodeToANSI(dir), fragmentNames, fractureNames);
 		dlg.SetVisited(visited);
+		dlg.SetFixedFractureId(false);
 		if (dlg.DoModal() == IDOK)
 		{
 			int i = dlg.GetId()[0];
@@ -935,6 +941,13 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonChooseFloatFracture()
 			curSelectedFractures[1] = fractureNames[i][j];
 			visited[i][j] = 1;
 			floatFracture = fracturess[i][j];
+			// 存储同一碎片上的其他断面
+			for (unsigned int k = 0; k < fracturess[i].size(); k++)
+			{
+				string title = fracturesDir + prefix + "-" + to_string(i + 1) + "-";
+				title.push_back(char('a' + k));
+				floatFractures.push_back(make_pair(fracturess[i][k], title + ".stl"));
+			}
 			floatFragment = fragments[i];
 			pairOfFractures.push_back(fixedFracture);
 			pairOfFragments.push_back(fixedFragment);
@@ -967,6 +980,7 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonFirstPca()
 	TransformDatas(floatFragment, matrix);		// 将数据通过矩阵变换到另一个位置
 	TransformDatas(transformedDatas, matrix);		// 将数据通过矩阵变换到另一个位置
 	TransformCenter(floatCenter, matrix);			// 将浮动的中心点通过矩阵变换到另一个位置
+	TransformFracturesOnTheSameFragment(floatFractures, matrix);	// 将同一碎片上的其他断面通过矩阵变换到另一个位置
 	pairOfFragments.push_back(fixedFragment);
 	pairOfFragments.push_back(floatFragment);
 	DisplayFragmentsAndFractures(pairOfFragments, transformedDatas, adjustedRendererWindow);
@@ -988,6 +1002,7 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonTurnOver()
 		RotateAndTranslate(matrix, rotateAxis, vtkMath::Pi());
 		TransformDatas(floatFragment, matrix);
 		TransformDatas(transformedDatas, matrix);		// 将数据通过矩阵变换到另一个位置
+		TransformFracturesOnTheSameFragment(floatFractures, matrix);	// 将同一碎片上的其他断面通过矩阵变换到另一个位置
 		//TransformCenter(floatCenter, matrix);			// 将浮动的中心点通过矩阵变换到另一个位置
 		pairOfFragments.push_back(fixedFragment);
 		pairOfFragments.push_back(floatFragment);
@@ -1153,17 +1168,14 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonSaveFragment()
 		{
 			string name = Utils::UnicodeToANSI(openFileDlg.GetPathName());
 			WriteModel(floatFragment, name);
+			for (auto fracture : floatFractures)
+				WriteModel(fracture.first, fracture.second);
 		}
 	}
 	
 
 }
 
-
-void CFragmentsRestorationAssitantDlg::OnBnClickedButtonSecondPca()
-{
-	// TODO:  在此添加控件通知处理程序代码
-}
 
 
 void CFragmentsRestorationAssitantDlg::OnBnClickedButtonRechose()
@@ -1179,4 +1191,24 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonRechose()
 	fracturess.swap(tmp4);
 	vector<vector<int>> tmp5;
 	visited.swap(tmp5);
+}
+
+
+void CFragmentsRestorationAssitantDlg::OnBnClickedButtonSaveRelation()
+{
+	// TODO:  在此添加控件通知处理程序代码
+	if (curSelectedFractures[0] != "" && curSelectedFractures[1] != "")
+	{
+		ofstream file(matchPairFileName, ios::app);
+		string content = "";
+		string fixedName = curSelectedFractures[0];
+		string floatName = curSelectedFractures[1];
+		vector<string> fixedSegments = Utils::SplitString(fixedName, "\\");
+		vector<string> floatSegments = Utils::SplitString(floatName, "\\");
+		string fixedPost = fixedSegments[fixedSegments.size() - 1];
+		string floatPost = floatSegments[floatSegments.size() - 1];
+		content += fixedPost.substr(0, fixedPost.length() - 4) + "&" + floatPost.substr(0, floatPost.length() - 4);
+		file << content << endl;
+		file.close();
+	}
 }
