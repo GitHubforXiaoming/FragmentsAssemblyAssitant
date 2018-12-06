@@ -50,12 +50,9 @@ private:
 	vtkSmartPointer<vtkRenderWindow> renderWindow;
 	vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor;
 
-	vtkSmartPointer<vtkRenderer> originalRenderer;
 	vtkSmartPointer<vtkRenderWindow> originalRendererWindow;
 	vtkSmartPointer<vtkRenderWindowInteractor> originalInteractor;
 
-
-	vtkSmartPointer<vtkRenderer> adjustedRenderer;
 	vtkSmartPointer<vtkRenderWindow> adjustedRendererWindow;
 	vtkSmartPointer<vtkRenderWindowInteractor> adjustedInteractor;
 

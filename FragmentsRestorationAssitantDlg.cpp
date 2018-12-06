@@ -62,12 +62,9 @@ CFragmentsRestorationAssitantDlg::CFragmentsRestorationAssitantDlg(CWnd* pParent
 	renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
 	renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
 
-	originalRenderer = vtkSmartPointer<vtkRenderer>::New();
 	originalRendererWindow = vtkSmartPointer<vtkRenderWindow>::New();
 	originalInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
 
-
-	adjustedRenderer = vtkSmartPointer<vtkRenderer>::New();
 	adjustedRendererWindow = vtkSmartPointer<vtkRenderWindow>::New();
 	adjustedInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
 
@@ -845,10 +842,19 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonOpenFragmentsAndFracture
 		pMalloc->Release();	//释放接口
 	}
 	defaultPath = filePath;
+	if (!filePath.Compare(_T(""))) 
+	{
+		MessageBox(_T("打开文件错误！"), _T("提示"), MB_OK);
+		return;
+	}
+
 	fragments = utils.ReadDatas(Utils::UnicodeToANSI(filePath) + "\\", fragmentNames);
 	fracturess = utils.ReadFracturesWithPrefix(Utils::UnicodeToANSI(filePath) + "\\", fracturesDir, fractureNames, prefix);
 
-	matchPairFileName = Utils::UnicodeToANSI(filePath) + "\\fragment-" + prefix + ".txt";
+	vector<string> splitted = utils.SplitString(Utils::UnicodeToANSI(filePath), "\\");
+	for (unsigned int i = 0; i < splitted.size() - 2; i++)
+		matchPairFileName += splitted[i] + "\\";
+	matchPairFileName += "match-pair\\fragment-" + prefix + ".txt";
 	if (_access(matchPairFileName.c_str(), 0) != -1)
 		remove(matchPairFileName.c_str());
 
@@ -899,10 +905,10 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonChooseFixFracture()
 			int j = dlg.GetId()[1];
 			if (pairOfFractures.size() != 0 && pairOfFragments.size() != 0)
 			{
-				pairOfFractures.clear();
-				pairOfFragments.clear();
-				originalRendererWindow->Delete();
-				originalInteractor->Delete();
+				vector<vtkSmartPointer<vtkPolyData>> tmp1;
+				vector<vtkSmartPointer<vtkPolyData>> tmp2;
+				pairOfFractures.swap(tmp1);
+				pairOfFragments.swap(tmp2);
 			}
 			curSelectedFractures[0] = fractureNames[i][j];
 			visited[i][j] = 1;
@@ -933,10 +939,11 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonChooseFloatFracture()
 		{
 			int i = dlg.GetId()[0];
 			int j = dlg.GetId()[1];
-			if (pairOfFractures.size() != 0 && pairOfFragments.size() != 0)
+			if (pairOfFractures.size() != 0 && pairOfFragments.size() != 0 && originalPairOfFragments.size() != 0)
 			{
-				pairOfFractures.clear();
-				pairOfFragments.clear();
+				utils.ClearVector<vtkSmartPointer<vtkPolyData>>(pairOfFractures);
+				utils.ClearVector<vtkSmartPointer<vtkPolyData>>(pairOfFragments);
+				utils.ClearVector<vtkSmartPointer<vtkPolyData>>(originalPairOfFragments);
 			}
 			curSelectedFractures[1] = fractureNames[i][j];
 			visited[i][j] = 1;
@@ -960,6 +967,7 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonChooseFloatFracture()
 			originalPairOfFragments.push_back(floatOriginalFragment);
 			DisplayFragmentsAndFractures(originalPairOfFragments, pairOfFractures, originalRendererWindow);
 			RecordOperation(11);
+			//originalRendererWindow->Render();
 			Display(IDC_STATIC_ORIGINAL_VIEW, originalRendererWindow, originalInteractor);
 		}
 		
@@ -1070,11 +1078,11 @@ void CFragmentsRestorationAssitantDlg::OnDeltaposSpinTurnRotate(NMHDR *pNMHDR, L
 	{
 		vtkSmartPointer<vtkMatrix4x4> matrix = vtkSmartPointer<vtkMatrix4x4>::New();
 		RotateAndTranslate(matrix, rotateAxis, alpha * vtkMath::Pi() / 180);
-		TransformDatas(floatFragment, matrix);
+		//TransformDatas(floatFragment, matrix);
 		TransformDatas(transformedDatas, matrix);		// 将数据通过矩阵变换到另一个位置
 		//TransformCenter(floatCenter, matrix);			// 将浮动的中心点通过矩阵变换到另一个位置
 		TransformDatas(pairOfFragments, matrix);
-		DisplayFragmentsAndFractures(pairOfFragments, transformedDatas, adjustedRendererWindow);
+		//DisplayFragmentsAndFractures(pairOfFragments, transformedDatas, adjustedRendererWindow);
 		adjustedRendererWindow->Render();
 		//Display(IDC_STATIC_ADJUSTED_VIEW, adjustedRendererWindow, adjustedInteractor);
 	}
@@ -1120,7 +1128,7 @@ void CFragmentsRestorationAssitantDlg::OnDeltaposSpinTurnTranslate(NMHDR *pNMHDR
 		TransformDatas(transformedDatas, matrix);		// 将数据通过矩阵变换到另一个位置
 		//TransformCenter(floatCenter, matrix);			// 将浮动的中心点通过矩阵变换到另一个位置
 		TransformDatas(pairOfFragments, matrix);
-		DisplayFragmentsAndFractures(pairOfFragments, transformedDatas, adjustedRendererWindow);
+		//DisplayFragmentsAndFractures(pairOfFragments, transformedDatas, adjustedRendererWindow);
 		adjustedRendererWindow->Render();
 		//Display(IDC_STATIC_ADJUSTED_VIEW, adjustedRendererWindow, adjustedInteractor);
 	}
@@ -1181,16 +1189,15 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonSaveFragment()
 void CFragmentsRestorationAssitantDlg::OnBnClickedButtonRechose()
 {
 	// TODO:  在此添加控件通知处理程序代码
-	vector<string> tmp1;
-	fragmentNames.swap(tmp1);
-	vector<vector<string>> tmp2;
-	fractureNames.swap(tmp2);
-	vector<vtkSmartPointer<vtkPolyData>> tmp3;
-	fragments.swap(tmp3);
-	vector<vector<vtkSmartPointer<vtkPolyData>>> tmp4;
-	fracturess.swap(tmp4);
-	vector<vector<int>> tmp5;
-	visited.swap(tmp5);
+	utils.ClearVector<vtkSmartPointer<vtkPolyData>>(pairOfFractures);
+	utils.ClearVector<vtkSmartPointer<vtkPolyData>>(pairOfFragments);
+
+	for (auto & row : visited) 
+	{
+		for (auto col : row)
+			col = 0;
+	}
+
 }
 
 
@@ -1210,5 +1217,6 @@ void CFragmentsRestorationAssitantDlg::OnBnClickedButtonSaveRelation()
 		content += fixedPost.substr(0, fixedPost.length() - 4) + "&" + floatPost.substr(0, floatPost.length() - 4);
 		file << content << endl;
 		file.close();
+		MessageBox(_T("保存成功！"), _T("提示"), MB_OK);
 	}
 }

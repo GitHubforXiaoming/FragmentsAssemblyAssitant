@@ -159,7 +159,7 @@ void CSelectFracturesDlg::OnNMDblclkTreeFragmentsAndFractures(NMHDR *pNMHDR, LRE
 			isRender++;
 			renderWindow->Render();
 		}
-		if (visited[fragmentId - 1][fractureId - 1])
+		if (/*visited[fragmentId - 1][fractureId - 1]*/0)
 		{
 			MessageBox(_T("该断面已经被选过"), _T("提示"), MB_OK);
 		}
